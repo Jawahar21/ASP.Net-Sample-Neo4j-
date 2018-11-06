@@ -15,17 +15,25 @@ namespace EmployeesSampleApplication
             _driver = GraphDatabase.Driver(uri, AuthTokens.Basic(user, password));
         }
         public String addEmployee(Employee e) {
-            using (var session = _driver.Session())
+            try
             {
-                var response = session.WriteTransaction(tx =>
+                using (var session = _driver.Session())
                 {
-                    var result = tx.Run("CREATE (a:Employee { id:$eid,name:$name,email:$email,phno:$phno,desig:$desig}) Return a.name"
-                        ,
-                        new { eid=e.id, name=e.name,email=e.email,phno=e.phno,desig=e.desig });
-                    return result.Single()[0].As<string>();
-                });
-                return response;
+                    var response = session.WriteTransaction(tx =>
+                    {
+                        var result = tx.Run("CREATE (a:Employee { id:$eid,name:$name,email:$email,phno:$phno,desig:$desig}) Return a.name"
+                            ,
+                            new { eid = e.id, name = e.name, email = e.email, phno = e.phno, desig = e.desig });
+                        return result.Single()[0].As<string>();
+                    });
+                    return "Successfully added " + response + "!";
+                }
             }
+            catch (ClientException cl)
+            {
+                return "Addition Failed User already exists!";
+            }
+            
         }
         public List<Employee> getEmployees() {
             List<Employee> employees = new List<Employee>();
@@ -42,6 +50,33 @@ namespace EmployeesSampleApplication
                     return employees;
                 });
                 return response;
+            }
+        }
+        public IStatementResult deleteEmployee(EmployeeID employeeIDs)
+        {
+            using (var session = _driver.Session())
+            {
+                var response = session.WriteTransaction(tx =>
+                {
+                    var result = tx.Run("MATCH (n:Employee) WHERE n.id in $ids DELETE (n)"
+                        ,
+                        new { ids = employeeIDs.ids });
+                    return result;
+                });
+                return response;
+            }
+        }
+        public void updateEmployee(Employee e)
+        {
+            using (var session = _driver.Session())
+            {
+                var response = session.WriteTransaction(tx =>
+                {
+                    var result = tx.Run("MATCH (n:Employee) where n.id=$id set n.name = $name, n.email = $email, n.phno = $phno, n.desig = $desig"
+                        ,
+                        new { id = e.id, name=e.name,email=e.email,phno=e.phno,desig=e.desig });
+                    return result;
+                });
             }
         }
         public void Dispose()
